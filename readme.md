@@ -1,13 +1,17 @@
 # Dronecraft
 
+## Goal
+
+```
+docker      -> drone
 dockercraft -> dronecraft
+containers  -> builds
+```
 
-containers -> builds
-
-I have no idea how to show the repos and users.
+## Proposal
 
 // TODO
 
-1. update go to 1.6 to support vendor
-2. test if drone client is available
+## Challenges
 
+I have no idea how to show the repos and users.
