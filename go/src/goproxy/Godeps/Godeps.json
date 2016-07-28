@@ -1,0 +1,64 @@
+{
+	"ImportPath": "goproxy",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0-28-ga283a10",
+			"Rev": "a283a10442df8dc09befd873fab202bf8a253d6a"
+		},
+		{
+			"ImportPath": "github.com/docker/go-units",
+			"Comment": "v0.3.0",
+			"Rev": "5d2041e26a699eaca682e2ea41c8f891e1060444"
+		},
+		{
+			"ImportPath": "github.com/drone/drone/client",
+			"Comment": "v0.4.2-167-gae418bf",
+			"Rev": "ae418bf063907d4081b9dd7c3f787002cdacb049"
+		},
+		{
+			"ImportPath": "github.com/drone/drone/model",
+			"Comment": "v0.4.2-167-gae418bf",
+			"Rev": "ae418bf063907d4081b9dd7c3f787002cdacb049"
+		},
+		{
+			"ImportPath": "github.com/drone/drone/queue",
+			"Comment": "v0.4.2-167-gae418bf",
+			"Rev": "ae418bf063907d4081b9dd7c3f787002cdacb049"
+		},
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.0.0-18-g5e2e56d",
+			"Rev": "5e2e56d5dfd46884df1036f828777ee6273f2cff"
+		},
+		{
+			"ImportPath": "github.com/samalba/dockerclient",
+			"Rev": "a3036261847103270e9f732509f43b5f98710ace"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "30be488e9140ebb7fac3b2995ac5a4b4d5e715ed"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context/ctxhttp",
+			"Rev": "30be488e9140ebb7fac3b2995ac5a4b4d5e715ed"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "ef4eca6b097fad7cec79afcc278d213a6de1c960"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/internal",
+			"Rev": "ef4eca6b097fad7cec79afcc278d213a6de1c960"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "b776ec39b3e54652e09028aaaaac9757f4f8211a"
+		}
+	]
+}
