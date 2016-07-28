@@ -1,57 +1,53 @@
--- Container object is the representation of a Docker
--- container in the Minecraft world
+-- Build object is the representation of a Docker
+-- Build in the Minecraft world
 
 -- constant variables
-CONTAINER_CREATED = 0
-CONTAINER_RUNNING = 1
-CONTAINER_STOPPED = 2
+BUILD_SUCCESS = 0
+BUILD_FAILED = 1
+BUILD_PENDING = 2
+BUILD_RUNNING = 3
 
--- NewContainer returns a Container object,
--- representation of a Docker container in
+-- NewBuild returns a Build object,
+-- representation of a Drone Build in
 -- the Minecraft world
-function NewContainer()
-	c = {
+function NewBuild()
+	b = {
 			displayed = false, 
 			x = 0, 
 			z = 0, 
 			name="",
 			id="",
-			imageRepo="",
-			imageTag="",
 			running=false,
-			init=Container.init,
-			setInfos=Container.setInfos,
-			destroy=Container.destroy,
-			display=Container.display,
-			updateMemSign=Container.updateMemSign,
-			updateCPUSign=Container.updateCPUSign,
-			addGround=Container.addGround
+			init=Build.init,
+			setInfos=Build.setInfos,
+			destroy=Build.destroy,
+			display=Build.display,
+			updateMemSign=Build.updateMemSign,
+			updateCPUSign=Build.updateCPUSign,
+			addGround=Build.addGround
 		}
-	return c
+	return b
 end
 
-Container = {displayed = false, x = 0, z = 0, name="",id="",imageRepo="",imageTag="",running=false}
+Build = {displayed = false, x = 0, z = 0, name="",id="",imageRepo="",imageTag="",running=false}
 
--- Container:init sets Container's position
-function Container:init(x,z)
+-- Build:init sets Build's position
+function Build:init(x,z)
 	self.x = x
 	self.z = z
 	self.displayed = false	
 end
 
--- Container:setInfos sets Container's id, name, imageRepo, 
--- image tag and running state
-function Container:setInfos(id,name,imageRepo,imageTag,running)
+-- Build:setInfos sets Build's id, name, and running state
+function Build:setInfos(id,name,running)
 	self.id = id
 	self.name = name
-	self.imageRepo = imageRepo
-	self.imageTag = imageTag
 	self.running = running
 end
 
--- Container:destroy removes all blocks of the 
--- container, it won't be visible on the map anymore
-function Container:destroy(running)
+-- Build:destroy removes all blocks of the 
+-- Build, it won't be visible on the map anymore
+function Build:destroy(running)
 	X = self.x+2
 	Y = GROUND_LEVEL+2
 	Z = self.z+2
@@ -87,10 +83,10 @@ function Container:destroy(running)
 	end
 end
 
--- Container:display displays all Container's blocks
--- Blocks will be blue if the container is running, 
+-- Build:display displays all Build's blocks
+-- Blocks will be blue if the Build is running, 
 -- orange otherwise.
-function Container:display(running)
+function Build:display(running)
 
 	metaPrimaryColor = E_META_WOOL_LIGHTBLUE
 	metaSecondaryColor = E_META_WOOL_BLUE
@@ -185,21 +181,21 @@ function Container:display(running)
 end
 
 
--- Container:updateMemSign updates the mem usage
--- value displayed on Container's sign
-function Container:updateMemSign(s)
+-- Build:updateMemSign updates the mem usage
+-- value displayed on Build's sign
+function Build:updateMemSign(s)
 	updateSign(UpdateQueue,self.x,GROUND_LEVEL + 2,self.z - 1,"Mem usage","",s,"")
 end
 
--- Container:updateCPUSign updates the mem usage
--- value displayed on Container's sign
-function Container:updateCPUSign(s)
+-- Build:updateCPUSign updates the mem usage
+-- value displayed on Build's sign
+function Build:updateCPUSign(s)
 	updateSign(UpdateQueue,self.x+1,GROUND_LEVEL + 2,self.z - 1,"CPU usage","",s,"")
 end
 
--- Container:addGround creates ground blocks
--- necessary to display the container
-function Container:addGround()
+-- Build:addGround creates ground blocks
+-- necessary to display the Build
+function Build:addGround()
 	if GROUND_MIN_X > self.x - 2
 	then 
 		OLD_GROUND_MIN_X = GROUND_MIN_X

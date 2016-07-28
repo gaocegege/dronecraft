@@ -6,11 +6,12 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/drone/drone/client"
+	"github.com/drone/drone/model"
 	"github.com/samalba/dockerclient"
 )
 
@@ -43,14 +44,14 @@ var (
 	dockerDaemonVersion string
 )
 
-type CPUStats struct {
-	TotalUsage  uint64
-	SystemUsage uint64
-}
+// type CPUStats struct {
+// 	TotalUsage  uint64
+// 	SystemUsage uint64
+// }
 
-// previousCPUStats is a map containing the previous CPU stats we got from the
-// docker daemon through the docker remote API
-var previousCPUStats map[string]*CPUStats = make(map[string]*CPUStats)
+// // previousCPUStats is a map containing the previous CPU stats we got from the
+// // docker daemon through the docker remote API
+// var previousCPUStats map[string]*CPUStats = make(map[string]*CPUStats)
 
 func main() {
 	// Set the debug level.
@@ -82,7 +83,42 @@ func main() {
 		logrus.Fatal(err.Error())
 	}
 	// start monitoring docker events
-	dockerClient.StartMonitorEvents(eventCallback, nil)
+	go func() {
+		var formerBuilds, builds []*model.Build
+		var err error
+		tick := time.NewTimer(5 * time.Second).C
+		formerBuilds, err = droneClient.BuildList(droneOwner, droneRepoName)
+		if err != nil {
+			logrus.Error("Err emitted when getting builds from drone", err)
+		}
+		for {
+			select {
+			case <-tick:
+				builds, err = droneClient.BuildList(droneOwner, droneRepoName)
+				if err != nil {
+					logrus.Error("Err emitted when getting builds from drone", err)
+				}
+
+				// Check whether the builds is more than formerBuilds.
+				if len(builds) > len(formerBuilds) {
+					for i := len(formerBuilds); i < len(builds); i++ {
+						// TODO: enclose the code.
+						data := url.Values{
+							"action":  {"startBuild"},
+							"id":      {string(builds[i].ID)},
+							"name":    {string(builds[i].Number)},
+							"running": {builds[i].Status},
+						}
+						CuberiteServerRequest(data)
+					}
+				}
+
+				logrus.Println("Tick Over.")
+				// Reset the tick.
+				tick = time.NewTimer(5 * time.Second).C
+			}
+		}
+	}()
 
 	// start a http server and listen on local port 8000
 	go func() {
@@ -98,127 +134,127 @@ func main() {
 }
 
 // eventCallback receives and handles the docker events
-func eventCallback(event *dockerclient.Event, ec chan error, args ...interface{}) {
-	logrus.Debugln("--\n%+v", *event)
+// func eventCallback(event *dockerclient.Event, ec chan error, args ...interface{}) {
+// 	logrus.Debugln("--\n%+v", *event)
 
-	id := event.ID
+// 	id := event.ID
 
-	switch event.Status {
-	case "create":
-		logrus.Debugln("create event")
+// 	switch event.Status {
+// 	case "create":
+// 		logrus.Debugln("create event")
 
-		repo, tag := splitRepoAndTag(event.From)
-		containerName := "<name>"
-		containerInfo, err := dockerClient.InspectContainer(id)
-		if err != nil {
-			logrus.Print("InspectContainer error:", err.Error())
-		} else {
-			containerName = containerInfo.Name
-		}
+// 		repo, tag := splitRepoAndTag(event.From)
+// 		containerName := "<name>"
+// 		containerInfo, err := dockerClient.InspectContainer(id)
+// 		if err != nil {
+// 			logrus.Print("InspectContainer error:", err.Error())
+// 		} else {
+// 			containerName = containerInfo.Name
+// 		}
 
-		data := url.Values{
-			"action":    {"createContainer"},
-			"id":        {id},
-			"name":      {containerName},
-			"imageRepo": {repo},
-			"imageTag":  {tag}}
+// 		data := url.Values{
+// 			"action":    {"createContainer"},
+// 			"id":        {id},
+// 			"name":      {containerName},
+// 			"imageRepo": {repo},
+// 			"imageTag":  {tag}}
 
-		CuberiteServerRequest(data)
+// 		CuberiteServerRequest(data)
 
-	case "start":
-		logrus.Debugln("start event")
+// 	case "start":
+// 		logrus.Debugln("start event")
 
-		repo, tag := splitRepoAndTag(event.From)
-		containerName := "<name>"
-		containerInfo, err := dockerClient.InspectContainer(id)
-		if err != nil {
-			logrus.Print("InspectContainer error:", err.Error())
-		} else {
-			containerName = containerInfo.Name
-		}
+// 		repo, tag := splitRepoAndTag(event.From)
+// 		containerName := "<name>"
+// 		containerInfo, err := dockerClient.InspectContainer(id)
+// 		if err != nil {
+// 			logrus.Print("InspectContainer error:", err.Error())
+// 		} else {
+// 			containerName = containerInfo.Name
+// 		}
 
-		data := url.Values{
-			"action":    {"startContainer"},
-			"id":        {id},
-			"name":      {containerName},
-			"imageRepo": {repo},
-			"imageTag":  {tag}}
+// 		data := url.Values{
+// 			"action":    {"startContainer"},
+// 			"id":        {id},
+// 			"name":      {containerName},
+// 			"imageRepo": {repo},
+// 			"imageTag":  {tag}}
 
-		// Monitor stats
-		dockerClient.StartMonitorStats(id, statCallback, nil)
-		CuberiteServerRequest(data)
+// 		// Monitor stats
+// 		dockerClient.StartMonitorStats(id, statCallback, nil)
+// 		CuberiteServerRequest(data)
 
-	case "stop":
-		// die event is enough
-		// http://docs.docker.com/reference/api/docker_remote_api/#docker-events
+// 	case "stop":
+// 		// die event is enough
+// 		// http://docs.docker.com/reference/api/docker_remote_api/#docker-events
 
-	case "restart":
-		// start event is enough
-		// http://docs.docker.com/reference/api/docker_remote_api/#docker-events
+// 	case "restart":
+// 		// start event is enough
+// 		// http://docs.docker.com/reference/api/docker_remote_api/#docker-events
 
-	case "kill":
-		// die event is enough
-		// http://docs.docker.com/reference/api/docker_remote_api/#docker-events
+// 	case "kill":
+// 		// die event is enough
+// 		// http://docs.docker.com/reference/api/docker_remote_api/#docker-events
 
-	case "die":
-		logrus.Debugln("die event")
+// 	case "die":
+// 		logrus.Debugln("die event")
 
-		// same as stop event
-		repo, tag := splitRepoAndTag(event.From)
-		containerName := "<name>"
-		containerInfo, err := dockerClient.InspectContainer(id)
-		if err != nil {
-			logrus.Print("InspectContainer error:", err.Error())
-		} else {
-			containerName = containerInfo.Name
-		}
+// 		// same as stop event
+// 		repo, tag := splitRepoAndTag(event.From)
+// 		containerName := "<name>"
+// 		containerInfo, err := dockerClient.InspectContainer(id)
+// 		if err != nil {
+// 			logrus.Print("InspectContainer error:", err.Error())
+// 		} else {
+// 			containerName = containerInfo.Name
+// 		}
 
-		data := url.Values{
-			"action":    {"stopContainer"},
-			"id":        {id},
-			"name":      {containerName},
-			"imageRepo": {repo},
-			"imageTag":  {tag}}
+// 		data := url.Values{
+// 			"action":    {"stopContainer"},
+// 			"id":        {id},
+// 			"name":      {containerName},
+// 			"imageRepo": {repo},
+// 			"imageTag":  {tag}}
 
-		CuberiteServerRequest(data)
+// 		CuberiteServerRequest(data)
 
-	case "destroy":
-		logrus.Debugln("destroy event")
+// 	case "destroy":
+// 		logrus.Debugln("destroy event")
 
-		data := url.Values{
-			"action": {"destroyContainer"},
-			"id":     {id},
-		}
+// 		data := url.Values{
+// 			"action": {"destroyContainer"},
+// 			"id":     {id},
+// 		}
 
-		CuberiteServerRequest(data)
-	}
-}
+// 		CuberiteServerRequest(data)
+// 	}
+// }
 
 // statCallback receives the stats (cpu & ram) from containers and send them to
 // the cuberite server
-func statCallback(id string, stat *dockerclient.Stats, ec chan error, args ...interface{}) {
+// func statCallback(id string, stat *dockerclient.Stats, ec chan error, args ...interface{}) {
 
-	// logrus.Debugln("STATS", id, stat)
-	// logrus.Debugln("---")
-	// logrus.Debugln("cpu :", float64(stat.CpuStats.CpuUsage.TotalUsage)/float64(stat.CpuStats.SystemUsage))
-	// logrus.Debugln("ram :", stat.MemoryStats.Usage)
+// 	// logrus.Debugln("STATS", id, stat)
+// 	// logrus.Debugln("---")
+// 	// logrus.Debugln("cpu :", float64(stat.CpuStats.CpuUsage.TotalUsage)/float64(stat.CpuStats.SystemUsage))
+// 	// logrus.Debugln("ram :", stat.MemoryStats.Usage)
 
-	memPercent := float64(stat.MemoryStats.Usage) / float64(stat.MemoryStats.Limit) * 100.0
-	var cpuPercent float64 = 0.0
-	if preCPUStats, exists := previousCPUStats[id]; exists {
-		cpuPercent = calculateCPUPercent(preCPUStats, &stat.CpuStats)
-	}
+// 	memPercent := float64(stat.MemoryStats.Usage) / float64(stat.MemoryStats.Limit) * 100.0
+// 	var cpuPercent float64 = 0.0
+// 	if preCPUStats, exists := previousCPUStats[id]; exists {
+// 		cpuPercent = calculateCPUPercent(preCPUStats, &stat.CpuStats)
+// 	}
 
-	previousCPUStats[id] = &CPUStats{TotalUsage: stat.CpuStats.CpuUsage.TotalUsage, SystemUsage: stat.CpuStats.SystemUsage}
+// 	previousCPUStats[id] = &CPUStats{TotalUsage: stat.CpuStats.CpuUsage.TotalUsage, SystemUsage: stat.CpuStats.SystemUsage}
 
-	data := url.Values{
-		"action": {"stats"},
-		"id":     {id},
-		"cpu":    {strconv.FormatFloat(cpuPercent, 'f', 2, 64) + "%"},
-		"ram":    {strconv.FormatFloat(memPercent, 'f', 2, 64) + "%"}}
+// 	data := url.Values{
+// 		"action": {"stats"},
+// 		"id":     {id},
+// 		"cpu":    {strconv.FormatFloat(cpuPercent, 'f', 2, 64) + "%"},
+// 		"ram":    {strconv.FormatFloat(memPercent, 'f', 2, 64) + "%"}}
 
-	CuberiteServerRequest(data)
-}
+// 	CuberiteServerRequest(data)
+// }
 
 // execCmd handles http requests received for the path "/exec"
 func execCmd(w http.ResponseWriter, r *http.Request) {
@@ -264,11 +300,12 @@ func listBuilds(w http.ResponseWriter, r *http.Request) {
 		logrus.Debug("Getting builds from drone: %v", builds)
 		for _, build := range builds {
 			data := url.Values{
-				"action":  {"containerInfos"},
+				"action":  {"buildsInfo"},
 				"id":      {string(build.ID)},
 				"name":    {string(build.Number)},
 				"running": {build.Status},
 			}
+			logrus.Debug("Sending %s to mc server.", data)
 			CuberiteServerRequest(data)
 		}
 	}()
@@ -276,45 +313,48 @@ func listBuilds(w http.ResponseWriter, r *http.Request) {
 
 // Utility functions
 
-func calculateCPUPercent(previousCPUStats *CPUStats, newCPUStats *dockerclient.CpuStats) float64 {
-	var (
-		cpuPercent = 0.0
-		// calculate the change for the cpu usage of the container in between readings
-		cpuDelta = float64(newCPUStats.CpuUsage.TotalUsage - previousCPUStats.TotalUsage)
-		// calculate the change for the entire system between readings
-		systemDelta = float64(newCPUStats.SystemUsage - previousCPUStats.SystemUsage)
-	)
+// func calculateCPUPercent(previousCPUStats *CPUStats, newCPUStats *dockerclient.CpuStats) float64 {
+// 	var (
+// 		cpuPercent = 0.0
+// 		// calculate the change for the cpu usage of the container in between readings
+// 		cpuDelta = float64(newCPUStats.CpuUsage.TotalUsage - previousCPUStats.TotalUsage)
+// 		// calculate the change for the entire system between readings
+// 		systemDelta = float64(newCPUStats.SystemUsage - previousCPUStats.SystemUsage)
+// 	)
 
-	if systemDelta > 0.0 && cpuDelta > 0.0 {
-		cpuPercent = (cpuDelta / systemDelta) * float64(len(newCPUStats.CpuUsage.PercpuUsage)) * 100.0
-	}
-	return cpuPercent
-}
+// 	if systemDelta > 0.0 && cpuDelta > 0.0 {
+// 		cpuPercent = (cpuDelta / systemDelta) * float64(len(newCPUStats.CpuUsage.PercpuUsage)) * 100.0
+// 	}
+// 	return cpuPercent
+// }
 
-func splitRepoAndTag(repoTag string) (string, string) {
+// func splitRepoAndTag(repoTag string) (string, string) {
 
-	repo := ""
-	tag := ""
+// 	repo := ""
+// 	tag := ""
 
-	repoAndTag := strings.Split(repoTag, ":")
+// 	repoAndTag := strings.Split(repoTag, ":")
 
-	if len(repoAndTag) > 0 {
-		repo = repoAndTag[0]
-	}
+// 	if len(repoAndTag) > 0 {
+// 		repo = repoAndTag[0]
+// 	}
 
-	if len(repoAndTag) > 1 {
-		tag = repoAndTag[1]
-	}
+// 	if len(repoAndTag) > 1 {
+// 		tag = repoAndTag[1]
+// 	}
 
-	return repo, tag
-}
+// 	return repo, tag
+// }
 
 // CuberiteServerRequest send a POST request that will be handled
 // by our Cuberite Docker plugin.
 func CuberiteServerRequest(data url.Values) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("POST", "http://127.0.0.1:8080/webadmin/Docker/Docker", strings.NewReader(data.Encode()))
+	req, _ := http.NewRequest("POST", "http://127.0.0.1:8080/webadmin/Drone/Drone", strings.NewReader(data.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth("admin", "admin")
-	client.Do(req)
+	_, err := client.Do(req)
+	if err != nil {
+		logrus.Errorln("Error when send POST request to cuberite server.", err)
+	}
 }

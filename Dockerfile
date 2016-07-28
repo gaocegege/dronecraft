@@ -14,6 +14,4 @@ COPY ./docs/img/logo64x64.png logo.png
 COPY ./scripts/start.sh start.sh
 COPY ./docker/docker-1.11.1 /bin/docker-1.11.1
 
-RUN cat /srv/start.sh
-
 CMD ["/bin/bash","/srv/start.sh"]

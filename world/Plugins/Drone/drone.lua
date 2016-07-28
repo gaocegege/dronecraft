@@ -1,24 +1,24 @@
 
 -- queue containing the updates that need to be applied to the minecraft world
 UpdateQueue = nil
--- array of container objects
-Containers = {}
+-- array of build objects
+Builds = {}
 -- 
 SignsToUpdate = {}
 
 -- as a lua array cannot contain nil values, we store references to this object
--- in the "Containers" array to indicate that there is no container at an index
-EmptyContainerSpace = {}
+-- in the "Builds" array to indicate that there is no build at an index
+EmptyBuildSpace = {}
 
 -- Tick is triggered by cPluginManager.HOOK_TICK
-function Tick(TimeDelta)
+function updateEveryTick(TimeDelta)
 	UpdateQueue:update(MAX_BLOCK_UPDATE_PER_TICK)
 end
 
 -- Plugin initialization
 function Initialize(Plugin)
-	Plugin:SetName("Docker")
-	Plugin:SetVersion(1)
+	Plugin:SetName("Drone")
+	Plugin:SetVersion(1.0)
 
 	UpdateQueue = NewUpdateQueue()
 
@@ -32,13 +32,13 @@ function Initialize(Plugin)
 	cPluginManager:AddHook(cPluginManager.HOOK_TAKE_DAMAGE, OnTakeDamage);
 	cPluginManager:AddHook(cPluginManager.HOOK_WEATHER_CHANGING, OnWeatherChanging);
 	cPluginManager:AddHook(cPluginManager.HOOK_SERVER_PING, OnServerPing);
-	cPluginManager:AddHook(cPluginManager.HOOK_TICK, Tick);
+	cPluginManager:AddHook(cPluginManager.HOOK_TICK, updateEveryTick);
 
 	-- Command Bindings
 
-	cPluginManager.BindCommand("/docker", "*", DockerCommand, " - docker CLI commands")
+	cPluginManager.BindCommand("/drone", "*", DroneCommand, " - Drone CLI commands")
 
-	Plugin:AddWebTab("Docker",HandleRequest_Docker)
+	Plugin:AddWebTab("Drone",HandleRequest_Drone)
 
 	-- make all players admin
 	cRankManager:SetDefaultRank("Admin")
@@ -50,135 +50,136 @@ function Initialize(Plugin)
 end
 
 -- updateStats update CPU and memory usage displayed
--- on container sign (container identified by id)
+-- on Build sign (Build identified by id)
 function updateStats(id, mem, cpu)
-	for i=1, table.getn(Containers)
+	for i=1, table.getn(Builds)
 	do
-		if Containers[i] ~= EmptyContainerSpace and Containers[i].id == id
+		if Builds[i] ~= EmptyBuildSpace and Builds[i].id == id
 		then
-			Containers[i]:updateMemSign(mem)
-			Containers[i]:updateCPUSign(cpu)
+			Builds[i]:updateMemSign(mem)
+			Builds[i]:updateCPUSign(cpu)
 			break
 		end
 	end
 end
 
--- getStartStopLeverContainer returns the container
+-- getStartStopLeverBuild returns the Build
 -- id that corresponds to lever at x,y coordinates
-function getStartStopLeverContainer(x, z)
-	for i=1, table.getn(Containers)
+function getStartStopLeverBuild(x, z)
+	for i=1, table.getn(Builds)
 	do
-		if Containers[i] ~= EmptyContainerSpace and x == Containers[i].x + 1 and z == Containers[i].z + 1
+		if Builds[i] ~= EmptyBuildSpace and x == Builds[i].x + 1 and z == Builds[i].z + 1
 		then
-			return Containers[i].id
+			return Builds[i].id
 		end
 	end
 	return ""
 end
 
--- getRemoveButtonContainer returns the container
+-- getRemoveButtonBuild returns the Build
 -- id and state for the button at x,y coordinates
-function getRemoveButtonContainer(x, z)
-	for i=1, table.getn(Containers)
+function getRemoveButtonBuild(x, z)
+	for i=1, table.getn(Builds)
 	do
-		if Containers[i] ~= EmptyContainerSpace and x == Containers[i].x + 2 and z == Containers[i].z + 3
+		if Builds[i] ~= EmptyBuildSpace and x == Builds[i].x + 2 and z == Builds[i].z + 3
 		then
-			return Containers[i].id, Containers[i].running
+			return Builds[i].id, Builds[i].running
 		end
 	end
 	return "", true
 end
 
--- destroyContainer looks for the first container having the given id,
--- removes it from the Minecraft world and from the 'Containers' array
-function destroyContainer(id)
-	LOG("destroyContainer: " .. id)
-	-- loop over the containers and remove the first having the given id
-	for i=1, table.getn(Containers)
+-- destroyBuild looks for the first Build having the given id,
+-- removes it from the Minecraft world and from the 'Builds' array
+function destroyBuild(id)
+	LOG("destroyBuild: " .. id)
+	-- loop over the Builds and remove the first having the given id
+	for i=1, table.getn(Builds)
 	do
-		if Containers[i] ~= EmptyContainerSpace and Containers[i].id == id
+		if Builds[i] ~= EmptyBuildSpace and Builds[i].id == id
 		then
-			-- remove the container from the world
-			Containers[i]:destroy()
-			-- if the container being removed is the last element of the array
-			-- we reduce the size of the "Container" array, but if it is not, 
-			-- we store a reference to the "EmptyContainerSpace" object at the
+			-- remove the Build from the world
+			Builds[i]:destroy()
+			-- if the Build being removed is the last element of the array
+			-- we reduce the size of the "Build" array, but if it is not, 
+			-- we store a reference to the "EmptyBuildSpace" object at the
 			-- same index to indicate this is a free space now.
 			-- We use a reference to this object because it is not possible to
 			-- have 'nil' values in the middle of a lua array.
-			if i == table.getn(Containers)
+			if i == table.getn(Builds)
 			then
-				table.remove(Containers, i)
+				table.remove(Builds, i)
 				-- we have removed the last element of the array. If the array
-				-- has tailing empty container spaces, we remove them as well.
-				while Containers[table.getn(Containers)] == EmptyContainerSpace
+				-- has tailing empty Build spaces, we remove them as well.
+				while Builds[table.getn(Builds)] == EmptyBuildSpace
 				do
-					table.remove(Containers, table.getn(Containers))
+					table.remove(Builds, table.getn(Builds))
 				end
 			else
-				Containers[i] = EmptyContainerSpace
+				Builds[i] = EmptyBuildSpace
 			end
-			-- we removed the container, we can exit the loop
+			-- we removed the Build, we can exit the loop
 			break
 		end
 	end
 end
 
--- updateContainer accepts 3 different states: running, stopped, created
+-- updateBuild accepts 3 different states: running, stopped, created
 -- sometimes "start" events arrive before "create" ones
 -- in this case, we just ignore the update
-function updateContainer(id,name,imageRepo,imageTag,state)
-	LOG("Update container with ID: " .. id .. " state: " .. state)
+function updateBuild(id,name,state)
+	LOG("Update Build with ID: " .. id .. " state: " .. state)
 
-	-- first pass, to see if the container is
+	-- first pass, to see if the Build is
 	-- already displayed (maybe with another state)
-	for i=1, table.getn(Containers)
+	for i=1, table.getn(Builds)
 	do
-		-- if container found with same ID, we update it
-		if Containers[i] ~= EmptyContainerSpace and Containers[i].id == id
+		-- if Build found with same ID, we update it
+		if Builds[i] ~= EmptyBuildSpace and Builds[i].id == id
 		then
-			Containers[i]:setInfos(id,name,imageRepo,imageTag,state == CONTAINER_RUNNING)
-			Containers[i]:display(state == CONTAINER_RUNNING)
+			Builds[i]:setInfos(id,name,state == BUILD_RUNNING)
+			Builds[i]:display(state == BUILD_RUNNING)
 			LOG("found. updated. now return")
 			return
 		end
 	end
 
-	-- if container isn't already displayed, we see if there's an empty space
-	-- in the world to display the container
-	x = CONTAINER_START_X
+	LOG("Build isn't displayed.")
+	-- if Build isn't already displayed, we see if there's an empty space
+	-- in the world to display the Build
+	x = BUILD_START_X
 	index = -1
 
-	for i=1, table.getn(Containers)
+	for i=1, table.getn(Builds)
 	do
 		-- use first empty location
-		if Containers[i] == EmptyContainerSpace
+		if Builds[i] == EmptyBuildSpace
 		then
-			LOG("Found empty location: Containers[" .. tostring(i) .. "]")
+			LOG("Found empty location: Builds[" .. tostring(i) .. "]")
 			index = i
 			break
 		end
-		x = x + CONTAINER_OFFSET_X			
+		x = x + BUILD_OFFSET_X			
 	end
 
-	container = NewContainer()
-	container:init(x,CONTAINER_START_Z)
-	container:setInfos(id,name,imageRepo,imageTag,state == CONTAINER_RUNNING)
-	container:addGround()
-	container:display(state == CONTAINER_RUNNING)
+	build = NewBuild()
+	build:init(x,BUILD_START_Z)
+	build:setInfos(id,name,state == BUILD_RUNNING)
+	build:addGround()
+	build:display(state == BUILD_RUNNING)
 
 	if index == -1
 		then
-			table.insert(Containers, container)
+			table.insert(Builds, build)
 		else
-			Containers[index] = container
+			Builds[index] = build
 	end
 end
 
 --
 function WorldStarted(World)
 	y = GROUND_LEVEL
-	-- just enough to fit one container
+	-- just enough to fit one Build
 	-- then it should be dynamic
 	for x= GROUND_MIN_X, GROUND_MAX_X
 	do
@@ -194,7 +195,7 @@ function PlayerJoined(Player)
 	-- enable flying
 	Player:SetCanFly(true)
 
-	-- refresh containers
+	-- refresh Builds
 	LOG("player joined")
 	r = os.execute("goproxy builds")
 	LOG("executed: goproxy builds -> " .. tostring(r))
@@ -208,37 +209,37 @@ function PlayerUsingBlock(Player, BlockX, BlockY, BlockZ, BlockFace, CursorX, Cu
 	-- lever
 	if BlockType == 69
 	then
-		containerID = getStartStopLeverContainer(BlockX,BlockZ)
-		LOG("Using lever associated with container ID: " .. containerID)
+		BuildID = getStartStopLeverBuild(BlockX,BlockZ)
+		LOG("Using lever associated with Build ID: " .. BuildID)
 
-		if containerID ~= ""
+		if BuildID ~= ""
 		then
 			-- stop
 			if BlockMeta == 1
 			then
-				Player:SendMessage("docker stop " .. string.sub(containerID,1,8))
-				r = os.execute("goproxy exec?cmd=docker+stop+" .. containerID)
+				Player:SendMessage("Drone stop " .. string.sub(BuildID,1,8))
+				r = os.execute("goproxy exec?cmd=Drone+stop+" .. BuildID)
 			-- start
 			else 
-				Player:SendMessage("docker start " .. string.sub(containerID,1,8))
-				os.execute("goproxy exec?cmd=docker+start+" .. containerID)
+				Player:SendMessage("Drone start " .. string.sub(BuildID,1,8))
+				os.execute("goproxy exec?cmd=Drone+start+" .. BuildID)
 			end
 		else
-			LOG("WARNING: no docker container ID attached to this lever")
+			LOG("WARNING: no Drone Build ID attached to this lever")
 		end
 	end
 
 	-- stone button
 	if BlockType == 77
 	then
-		containerID, running = getRemoveButtonContainer(BlockX,BlockZ)
+		BuildID, running = getRemoveButtonBuild(BlockX,BlockZ)
 
 		if running
 		then
-			Player:SendMessage("A running container can't be removed.")
+			Player:SendMessage("A running Build can't be removed.")
 		else 
-			Player:SendMessage("docker rm " .. string.sub(containerID,1,8))
-			os.execute("goproxy exec?cmd=docker+rm+" .. containerID)
+			Player:SendMessage("Drone rm " .. string.sub(BuildID,1,8))
+			os.execute("goproxy exec?cmd=Drone+rm+" .. BuildID)
 		end
 	end
 end
@@ -255,20 +256,20 @@ function OnChunkGenerating(World, ChunkX, ChunkZ, ChunkDesc)
 end
 
 
-function DockerCommand(Split, Player)
+function DroneCommand(Split, Player)
 
 	if table.getn(Split) > 0
 	then
 
 		LOG("Split[1]: " .. Split[1])
 
-		if Split[1] == "/docker"
+		if Split[1] == "/Drone"
 		then
 			if table.getn(Split) > 1
 			then
 				if Split[2] == "pull" or Split[2] == "create" or Split[2] == "run" or Split[2] == "stop" or Split[2] == "rm" or Split[2] == "rmi" or Split[2] == "start" or Split[2] == "kill"
 				then
-					-- force detach when running a container
+					-- force detach when running a Build
 					if Split[2] == "run"
 					then
 						table.insert(Split,3,"-d")
@@ -291,77 +292,70 @@ end
 
 
 
-function HandleRequest_Docker(Request)
+function HandleRequest_Drone(Request)
 	
-	content = "[dockerclient]"
+	content = "[Droneclient]"
 
 	if Request.PostParams["action"] ~= nil then
 
 		action = Request.PostParams["action"]
 
-		-- receiving informations about one container
+		-- receiving informations about one Build
 		
-		if action == "containerInfos"
+		if action == "buildsInfo"
 		then
-			LOG("EVENT - containerInfos")
+			LOG("EVENT - buildsInfo")
 
 			name = Request.PostParams["name"]
-			imageRepo = Request.PostParams["imageRepo"]
-			imageTag = Request.PostParams["imageTag"]
 			id = Request.PostParams["id"]
 			running = Request.PostParams["running"]
 
-			-- LOG("containerInfos running: " .. running)
+			LOG("BuildInfos running: " .. running)
 
-			state = CONTAINER_STOPPED
-			if running == "true" then
-				state = CONTAINER_RUNNING
+			state = BUILD_SUCCESS
+			if running ~= "success" 
+			then
+				state = BUILD_RUNNING
 			end
 
-			updateContainer(id,name,imageRepo,imageTag,state)
+			updateBuild(id,name,state)
 		end
 
-		if action == "startContainer"
+		if action == "startBuild"
 		then
-			LOG("EVENT - startContainer")
+			LOG("EVENT - startBuild")
 
 			name = Request.PostParams["name"]
-			imageRepo = Request.PostParams["imageRepo"]
-			imageTag = Request.PostParams["imageTag"]
 			id = Request.PostParams["id"]
 
-			updateContainer(id,name,imageRepo,imageTag,CONTAINER_RUNNING)
+			updateBuild(id,name,BUILD_RUNNING)
 		end
 
-		if action == "createContainer"
+		if action == "createBuild"
 		then
-			LOG("EVENT - createContainer")
+			LOG("EVENT - createBuild")
 
 			name = Request.PostParams["name"]
-			imageRepo = Request.PostParams["imageRepo"]
-			imageTag = Request.PostParams["imageTag"]
 			id = Request.PostParams["id"]
 
-			updateContainer(id,name,imageRepo,imageTag,CONTAINER_CREATED)
+			updateBuild(id,name,imageRepo,imageTag,BUILD_CREATED)
 		end
 
-		if action == "stopContainer"
+		if action == "stopBuild"
 		then
-			LOG("EVENT - stopContainer")
+			LOG("EVENT - stopBuild")
 
 			name = Request.PostParams["name"]
-			imageRepo = Request.PostParams["imageRepo"]
-			imageTag = Request.PostParams["imageTag"]
 			id = Request.PostParams["id"]
 
-			updateContainer(id,name,imageRepo,imageTag,CONTAINER_STOPPED)
+			updateBuild(id,name,imageRepo,imageTag,BUILD_STOPPED)
 		end
 
-		if action == "destroyContainer"
+		if action == "destroyBuild"
 		then
-			LOG("EVENT - destroyContainer")
+			LOG("EVENT - destroyBuild")
 			id = Request.PostParams["id"]
-			destroyContainer(id)
+			destroyBuild(id)
 		end
 
 		if action == "stats"
@@ -381,7 +375,7 @@ function HandleRequest_Docker(Request)
 
 	end
 
-	content = content .. "[/dockerclient]"
+	content = content .. "[/Droneclient]"
 
 	return content
 end
@@ -404,7 +398,7 @@ end
 
 function OnServerPing(ClientHandle, ServerDescription, OnlinePlayers, MaxPlayers, Favicon)
 	-- Change Server Description
-	ServerDescription = "A Docker client for Minecraft"
+	ServerDescription = "A Drone client for Minecraft, inspired by Dronecraft."
 	-- Change favicon
 	if cFile:IsFile("/srv/logo.png") then
 		local FaviconData = cFile:ReadWholeFile("/srv/logo.png")
@@ -419,4 +413,3 @@ end
 function OnWeatherChanging(World, Weather)
 	return true, wSunny
 end
-
