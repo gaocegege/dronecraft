@@ -91,7 +91,7 @@ function Build:display(running)
 	metaPrimaryColor = E_META_WOOL_LIGHTBLUE
 	metaSecondaryColor = E_META_WOOL_BLUE
 
-	if running == false 
+	if running == false
 	then
 		metaPrimaryColor = E_META_WOOL_ORANGE
 		metaSecondaryColor = E_META_WOOL_RED
@@ -171,13 +171,15 @@ function Build:display(running)
 	end
 
 	setBlock(UpdateQueue,self.x+3,GROUND_LEVEL + 2,self.z - 1,E_BLOCK_WALLSIGN,E_META_CHEST_FACING_ZM)
-	updateSign(UpdateQueue,self.x+3,GROUND_LEVEL + 2,self.z - 1,string.sub(self.id,1,8),self.name,self.imageRepo,self.imageTag,2)
+
+	-- no sign now
+	-- updateSign(UpdateQueue,self.x+3,GROUND_LEVEL + 2,self.z - 1,string.sub(self.id,1,8),self.name,self.imageRepo,self.imageTag,2)
 
 	-- Mem sign
-	setBlock(UpdateQueue,self.x,GROUND_LEVEL + 2,self.z - 1,E_BLOCK_WALLSIGN,E_META_CHEST_FACING_ZM)
+	-- setBlock(UpdateQueue,self.x,GROUND_LEVEL + 2,self.z - 1,E_BLOCK_WALLSIGN,E_META_CHEST_FACING_ZM)
 
 	-- CPU sign
-	setBlock(UpdateQueue,self.x+1,GROUND_LEVEL + 2,self.z - 1,E_BLOCK_WALLSIGN,E_META_CHEST_FACING_ZM)
+	-- setBlock(UpdateQueue,self.x+1,GROUND_LEVEL + 2,self.z - 1,E_BLOCK_WALLSIGN,E_META_CHEST_FACING_ZM)
 end
 
 

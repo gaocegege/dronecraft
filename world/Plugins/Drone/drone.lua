@@ -159,6 +159,7 @@ function updateBuild(id,name,state)
 			index = i
 			break
 		end
+		-- update the location of the build
 		x = x + BUILD_OFFSET_X			
 	end
 
@@ -310,7 +311,7 @@ function HandleRequest_Drone(Request)
 			id = Request.PostParams["id"]
 			running = Request.PostParams["running"]
 
-			LOG("BuildInfos running: " .. running)
+			LOG("BuildInfos running: " .. running .. "ID: " .. id)
 
 			state = BUILD_SUCCESS
 			if running ~= "success" 

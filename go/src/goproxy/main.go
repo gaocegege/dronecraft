@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -301,11 +302,11 @@ func listBuilds(w http.ResponseWriter, r *http.Request) {
 		for _, build := range builds {
 			data := url.Values{
 				"action":  {"buildsInfo"},
-				"id":      {string(build.ID)},
-				"name":    {string(build.Number)},
+				"id":      {strconv.FormatInt(build.ID, 10)},
+				"name":    {strconv.Itoa(build.Number)},
 				"running": {build.Status},
 			}
-			logrus.Debug("Sending %s to mc server.", data)
+			logrus.Debugf("Sending %s to mc server.", data["id"])
 			CuberiteServerRequest(data)
 		}
 	}()
