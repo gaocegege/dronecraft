@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"goproxy/utils"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/drone/drone/client"
@@ -28,18 +29,24 @@ import (
 // them to the docker daemon.
 
 const (
-	// droneDaemonURL defines the URL of drone daemon.
-	droneDaemonURL = "http://118.193.185.191"
-	// droneRepoName defines the name of a repo.
-	droneRepoName = "hello-ci"
-	// droneOwner defines the owner of the given repo defined in droneRepoName.
-	droneOwner = "gaocegege"
+	// DRONEDAEMONURL defines the ENV var name of drone daemon url.
+	DRONEDAEMONURL = "DRONEDAEMONURL"
+	// DRONEREPONAME defines the ENV var name of drone repo name.
+	DRONEREPONAME = "DRONEREPONAME"
+	// DRONEREPOUSER defines the ENV var name of drone repo user.
+	DRONEREPOUSER = "DRONEREPOUSER"
 	// PollTick defines the tick of polling.
 	PollTick = 1 * time.Second
 )
 
 var (
-	droneClient client.Client
+	// droneDaemonURL defines the URL of drone daemon.
+	droneDaemonURL string
+	// droneRepoName defines the name of a repo.
+	droneRepoName string
+	// droneRepoUser defines the owner of the given repo defined in droneRepoName.
+	droneRepoUser string
+	droneClient   client.Client
 	// instance of DockerClient allowing for making calls to the docker daemon
 	// remote API
 	dockerClient *dockerclient.DockerClient
@@ -59,7 +66,14 @@ var (
 func main() {
 	// Set the debug level.
 	logrus.SetLevel(logrus.DebugLevel)
+	droneDaemonURL = utils.GetStringEnvWithDefault(DRONEDAEMONURL, "http://localhost")
+	droneRepoName = utils.GetStringEnvWithDefault(DRONEREPONAME, "DefaultRepoName")
+	droneRepoUser = utils.GetStringEnvWithDefault(DRONEREPOUSER, "DefaultRepoUser")
 
+	// TODO: add the repo and user dimension to dronecraft.
+	if droneRepoName == "DefaultRepoName" || droneRepoName == "DefaultRepoUser" {
+		logrus.Error("No DRONEREPONAME/DRONEREPOUSER defined.")
+	}
 	// goproxy is executed as a short lived process to send a request to the
 	// goproxy daemon process
 	if len(os.Args) > 1 {
@@ -90,14 +104,14 @@ func main() {
 		var formerBuilds, builds []*model.Build
 		var err error
 		tick := time.NewTimer(PollTick).C
-		formerBuilds, err = droneClient.BuildList(droneOwner, droneRepoName)
+		formerBuilds, err = droneClient.BuildList(droneRepoUser, droneRepoName)
 		if err != nil {
 			logrus.Error("Err emitted when getting builds from drone", err)
 		}
 		for {
 			select {
 			case <-tick:
-				builds, err = droneClient.BuildList(droneOwner, droneRepoName)
+				builds, err = droneClient.BuildList(droneRepoUser, droneRepoName)
 				if err != nil {
 					logrus.Error("Err emitted when getting builds from drone", err)
 				}
@@ -294,7 +308,7 @@ func listBuilds(w http.ResponseWriter, r *http.Request) {
 	// answer right away to avoid dead locks in LUA
 	io.WriteString(w, "OK")
 	go func() {
-		builds, err := droneClient.BuildList(droneOwner, droneRepoName)
+		builds, err := droneClient.BuildList(droneRepoUser, droneRepoName)
 		if err != nil {
 			logrus.Println(err.Error())
 			return
