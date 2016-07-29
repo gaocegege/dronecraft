@@ -1,5 +1,7 @@
 # Dronecraft
 
+![](./docs/gifs/dronecraft-slow.gif)
+
 ## Goal
 
 ```
