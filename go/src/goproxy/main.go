@@ -34,6 +34,8 @@ const (
 	droneRepoName = "hello-ci"
 	// droneOwner defines the owner of the given repo defined in droneRepoName.
 	droneOwner = "gaocegege"
+	// PollTick defines the tick of polling.
+	PollTick = 1 * time.Second
 )
 
 var (
@@ -87,7 +89,7 @@ func main() {
 	go func() {
 		var formerBuilds, builds []*model.Build
 		var err error
-		tick := time.NewTimer(5 * time.Second).C
+		tick := time.NewTimer(PollTick).C
 		formerBuilds, err = droneClient.BuildList(droneOwner, droneRepoName)
 		if err != nil {
 			logrus.Error("Err emitted when getting builds from drone", err)
@@ -116,7 +118,7 @@ func main() {
 
 				logrus.Println("Tick Over.")
 				// Reset the tick.
-				tick = time.NewTimer(5 * time.Second).C
+				tick = time.NewTimer(PollTick).C
 			}
 		}
 	}()
