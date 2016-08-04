@@ -2,27 +2,16 @@
 
 [![Join the chat at https://gitter.im/gaocegege/dronecraft](https://badges.gitter.im/gaocegege/dronecraft.svg)](https://gitter.im/gaocegege/dronecraft?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-WIP
+[dockercraft]: https://github.com/docker/dockercraft
+[drone]: https://github.com/drone/drone
 
-Dronecraft is a drone client in minecraft, inspired by [dockercraft](https://github.com/docker/dockercraft)
+Dronecraft is a drone client in minecraft, inspired by [dockercraft][dockercraft]
 
 ![](./docs/gifs/dronecraft-slow.gif)
 
-## Goal
+## Goals
 
-```
-docker      -> drone
-dockercraft -> dronecraft
-containers  -> builds
-```
-
-## Proposal
-
-// TODO
-
-## Challenges
-
-I have no idea how to show the repos and users.
+[Drone][drone] is a Continuous Delivery platform built on Docker, written in Go. This project is built on [drone][drone] and [dockercraft][dockercraft]. Dronecraft's prime directive is to play with drone in minecraft.
 
 ## Contributing
 
